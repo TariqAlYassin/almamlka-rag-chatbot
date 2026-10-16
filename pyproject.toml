@@ -1,0 +1,31 @@
+[project]
+name = "mamlka"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Tariq Yassin", email = "tariqmufidalyassin.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "arize-phoenix>=20.23.0",
+    "langchain>=1.4.6",
+    "langchain-community>=0.4.2",
+    "langchain-openai>=1.7.2",
+    "langchain-text-splitters>=1.1.3",
+    "openinference-instrumentation-langchain>=0.1.79",
+    "pymupdf>=1.28.2",
+    "pytest>=9.1.1",
+    "python-dotenv>=1.2.4",
+    "qdrant-client>=1.19.1",
+    "sentence-transformers>=6.1.0",
+    "streamlit>=1.66.0",
+    "torchvision>=0.29.1",
+]
+
+[project.scripts]
+mamlka = "mamlka:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
