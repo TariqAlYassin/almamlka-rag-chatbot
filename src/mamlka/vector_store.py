@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from uuid import uuid4
 
 from qdrant_client import QdrantClient, models
@@ -8,22 +7,19 @@ from mamlka.embeddings import embed_documents, embed_query
 
 COLLECTION_NAME = "almamlaka_knowledge"
 VECTOR_SIZE = 384
-DEFAULT_DB_PATH = Path("data/qdrant")
 
 
-DEFAULT_DB_PATH = Path("data/qdrant")
-
-
-def get_qdrant_client(db_path: Path = DEFAULT_DB_PATH) -> QdrantClient:
-    """Connect to Qdrant Server in Docker, or use local mode."""
-
+def get_qdrant_client():
     qdrant_url = os.getenv("QDRANT_URL")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
 
     if qdrant_url:
-        return QdrantClient(url=qdrant_url)
+        return QdrantClient(
+            url=qdrant_url,
+            api_key=qdrant_api_key,
+        )
 
-    db_path.mkdir(parents=True, exist_ok=True)
-    return QdrantClient(path=str(db_path))
+    return QdrantClient(path="data/qdrant")
 
 
 def create_collection(client: QdrantClient) -> None:
