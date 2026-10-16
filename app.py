@@ -10,8 +10,6 @@ from mamlka.vector_store import get_qdrant_client
 setup_observability()
 load_dotenv()
 
-ROOT = Path(__file__).resolve().parent
-QDRANT_DIRECTORY = ROOT / "data" / "qdrant"
 
 st.set_page_config(
     page_title="Almamlaka AI Assistant",
@@ -52,7 +50,7 @@ if not st.session_state.get("messages"):
 # Reuse one local Qdrant client during the Streamlit session.
 if "qdrant_client" not in st.session_state:
     try:
-        st.session_state.qdrant_client = get_qdrant_client(QDRANT_DIRECTORY)
+        st.session_state.qdrant_client = get_qdrant_client()
     except Exception as exc:
         st.error(f"Could not connect to the knowledge database: {exc}")
         st.stop()
