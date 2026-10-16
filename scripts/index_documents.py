@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from mamlka.chunking import chunk_sections
 from mamlka.ingestion import load_pdfs
 from mamlka.vector_store import (
@@ -10,18 +12,26 @@ from mamlka.vector_store import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PDF_DIRECTORY = ROOT / "data" / "pdfs"
-QDRANT_DIRECTORY = ROOT / "data" / "qdrant"
 
 
 def main():
+    load_dotenv(ROOT / ".env")
+
+    if not PDF_DIRECTORY.exists():
+        raise FileNotFoundError(f"PDF directory not found: {PDF_DIRECTORY}")
+
     sections = load_pdfs(PDF_DIRECTORY)
     chunks = chunk_sections(sections)
 
-    client = get_qdrant_client(QDRANT_DIRECTORY)
+    if not chunks:
+        raise ValueError(f"No chunks created. Check that PDFs exist in {PDF_DIRECTORY}")
+
+    client = get_qdrant_client()
 
     try:
         recreate_collection(client)
         count = index_chunks(client, chunks)
+
         print(f"Sections extracted: {len(sections)}")
         print(f"Chunks created: {len(chunks)}")
         print(f"Chunks indexed: {count}")

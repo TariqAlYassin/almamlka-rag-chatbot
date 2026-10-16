@@ -1,13 +1,19 @@
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from mamlka.answering import answer_question
 from mamlka.vector_store import get_qdrant_client
 
+
 ROOT = Path(__file__).resolve().parents[1]
+
+# Load environment variables from the project root .env file
+load_dotenv(ROOT / ".env", override=False)
 
 
 def main():
-    client = get_qdrant_client(ROOT / "data" / "qdrant")
+    client = get_qdrant_client()
 
     try:
         questions = [
@@ -20,10 +26,15 @@ def main():
         for question in questions:
             print(f"\nQUESTION: {question}")
             print("ANSWER:")
-            print(answer_question(question, client))
+
+            answer = answer_question(question, client)
+            print(answer)
             print("-" * 70)
+
     finally:
-        client.close()
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
 
 
 if __name__ == "__main__":
