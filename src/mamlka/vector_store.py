@@ -1,6 +1,7 @@
 import os
 from uuid import uuid4
 
+import streamlit as st
 from qdrant_client import QdrantClient, models
 
 from mamlka.embeddings import embed_documents, embed_query
@@ -10,13 +11,27 @@ VECTOR_SIZE = 384
 
 
 def get_qdrant_client():
+
     qdrant_url = os.getenv("QDRANT_URL")
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
+
+    # Read Streamlit Cloud secrets if environment variables aren't set.
+    if not qdrant_url:
+        qdrant_url = st.secrets.get("QDRANT_URL")
+
+    if not qdrant_api_key:
+        qdrant_api_key = st.secrets.get("QDRANT_API_KEY")
 
     if qdrant_url:
         return QdrantClient(
             url=qdrant_url,
-            api_key=qdrant_api_key,
+            api_key=qdrant_api_key or None,
+        )
+
+    # Local development only.
+    if os.getenv("STREAMLIT_SHARING_MODE") or os.getenv("IS_STREAMLIT_CLOUD"):
+        raise RuntimeError(
+            "QDRANT_URL is missing. Configure QDRANT_URL in Streamlit Secrets."
         )
 
     return QdrantClient(path="data/qdrant")
