@@ -1,196 +1,136 @@
-# Almamlaka Knowledge Assistant
+# Almamlaka TV Digital Expansion — RAG Assistant
 
-A multilingual Retrieval-Augmented Generation (RAG) chatbot that answers questions using Almamlaka project documents. It retrieves relevant document passages, generates grounded answers, provides source citations, and identifies conflicting information across documents.
+## Overview
+
+This project implements a Retrieval-Augmented Generation (RAG) assistant that answers questions using the provided Almamlaka TV Digital Expansion project documents.
+
+The application supports English and Arabic, provides source citations, identifies conflicting information across documents, and aims to generate answers grounded in the retrieved evidence.
+
+The application is deployed using **Streamlit Community Cloud**, making it accessible through a web browser without requiring users to run it locally. **Qdrant Cloud** provides hosted vector storage for document retrieval.
+
+**Live Demo:** Add your deployed Streamlit application URL here.
 
 ## Features
 
-- **Multilingual Q&A:** Supports English and Arabic questions.
-- **PDF ingestion:** Extracts text from PDF documents.
-- **Text chunking:** Splits documents into overlapping chunks for retrieval.
-- **Semantic search:** Uses multilingual sentence embeddings to retrieve relevant passages.
-- **Vector storage:** Stores and searches document embeddings using Qdrant.
-- **Grounded answers:** Uses retrieved document context to answer questions and avoids unsupported claims.
-- **Conflict detection:** Performs targeted retrieval for budget and launch-date questions to help identify conflicting information.
-- **Source citations:** Includes document names, page numbers, and section headings in the retrieved context and answers.
-- **Automated tests:** Includes tests for ingestion, chunking, embeddings, and safety behavior.
-- **Web interface:** Provides an interactive chatbot using Streamlit.
+- **Bilingual support:** Answer questions in English and Arabic.
+- **Section-based chunking:** Split document sections independently while preserving section metadata.
+- **Semantic retrieval:** Retrieve relevant passages using multilingual embeddings and vector similarity search.
+- **Source citations:** Include document filenames, page numbers, and section headings when available.
+- **Conflict detection:** Identify and explain discrepancies between retrieved documents.
+- **Grounded responses:** Instruct the language model to answer using the provided document context and acknowledge insufficient evidence.
+- **Conversation history:** Support conversational follow-up questions.
+- **Web deployment:** Access the assistant remotely through Streamlit Community Cloud.
 
 ## Architecture
 
 The application follows a RAG pipeline:
 
-1. **Ingestion:** Read the source PDFs and extract their text and metadata.
-2. **Chunking:** Split extracted text into manageable, overlapping passages.
-3. **Embedding:** Convert text chunks into multilingual vector representations.
-4. **Indexing:** Store vectors and associated metadata in Qdrant.
-5. **Retrieval:** Search for relevant passages based on the user's question.
-6. **Conflict-aware retrieval:** Retrieve additional targeted passages for questions involving budget or launch dates.
-7. **Answer generation:** Use the retrieved context to generate an answer grounded in the documents.
-8. **Citation and safety:** Preserve source information and decline to answer when relevant information cannot be found.
+1. **PDF extraction:** Extract text from the supplied PDF documents and organize it into sections.
+2. **Section-based chunking:** Split each section independently into smaller chunks when necessary.
+3. **Embedding generation:** Convert document chunks into multilingual vector embeddings.
+4. **Vector storage:** Store embeddings and associated metadata in Qdrant Cloud.
+5. **Retrieval:** Retrieve relevant document chunks in response to a user's question.
+6. **Conflict detection:** Identify potentially conflicting information across retrieved sources.
+7. **Answer generation:** Pass the retrieved context to an OpenAI language model to generate a grounded response.
+8. **Presentation:** Display answers and citations through a Streamlit chat interface.
 
-### Technology Stack
+## Technology Stack
 
-- Python
-- Streamlit
-- PyMuPDF
-- LangChain text splitters
-- Sentence Transformers
-- `paraphrase-multilingual-MiniLM-L12-v2`
-- Qdrant
-- OpenAI API
-- uv
-- pytest
-- Docker
+- **Python 3.12:** Core application language.
+- **uv:** Dependency and project management.
+- **PyMuPDF:** PDF text extraction.
+- **LangChain RecursiveCharacterTextSplitter:** Text chunking.
+- **Sentence Transformers — `paraphrase-multilingual-MiniLM-L12-v2`:** Multilingual embeddings.
+- **Qdrant Cloud:** Hosted vector database for embedding storage and similarity search.
+- **OpenAI `gpt-4o-mini`:** Answer generation.
+- **LangChain:** Language model integration and text processing.
+- **Streamlit:** Interactive web application interface.
+- **Streamlit Community Cloud:** Application hosting and deployment.
+- **Pytest:** Automated testing.
 
-## Project Structure
+## Section-Based Chunking Strategy
 
-```text
-mamlka/
-├── data/
-│   ├── pdfs/                 # Source PDF documents
-│   └── qdrant/               # Local Qdrant data, if used
-├── scripts/
-│   ├── index_documents.py   # Index documents
-│   ├── test_retrieval.py    # Test retrieval
-│   └── test_answering.py    # Test answer generation
-├── src/
-│   └── mamlka/
-│       ├── ingestion.py
-│       ├── chunking.py
-│       ├── embeddings.py
-│       ├── vector_store.py
-│       ├── answering.py
-│       ├── conflict_detection.py
-│       └── observability.py
-├── tests/
-├── app.py
-├── .env.example
-├── .gitignore
-├── pyproject.toml
-├── uv.lock
-├── Dockerfile
-└── compose.yml
-```
+The application uses a custom `chunk_sections()` function to process document sections independently.
 
-## Requirements
+Each section contains its text, heading, and associated metadata. The function applies LangChain's `RecursiveCharacterTextSplitter` with the following configuration:
 
-- Python 3.12
-- uv
-- An OpenAI API key
-- A Qdrant instance or local Qdrant storage
+| Parameter | Value |
+|---|---|
+| Chunk size | 900 characters |
+| Chunk overlap | 150 characters |
+| Separators | Paragraph breaks, line breaks, sentence boundaries, spaces, and individual characters as fallback options |
+| Start index | Enabled |
 
-## Installation
+Each section is split separately, preventing chunks from combining text from different sections. Short sections may remain as a single chunk, while longer sections are divided into smaller overlapping chunks.
 
-Clone the repository and enter the project directory:
+Each chunk retains metadata including the source filename, page information, section heading, and starting character index. This supports traceability during retrieval and helps the assistant generate source citations.
 
-```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd mamlka
-```
+## Embeddings and Vector Database
 
-Install the project dependencies:
+The application uses `paraphrase-multilingual-MiniLM-L12-v2` to generate vector representations of document chunks and user queries.
+
+These embeddings are stored in Qdrant alongside the associated metadata. At query time, vector similarity search retrieves passages relevant to the user's question.
+
+The multilingual embedding model supports semantic retrieval across English and Arabic queries.
+
+## Answer Generation and Citations
+
+Retrieved passages are supplied as context to OpenAI's `gpt-4o-mini` model.
+
+The assistant is instructed to:
+
+- Answer questions using the retrieved documents.
+- Cite factual claims using available source filenames, page numbers, and section headings.
+- Explain conflicting information and cite the sources supporting each version.
+- Avoid inventing facts or citation metadata.
+- Indicate when the provided documents do not contain sufficient information.
+- Respond in the language used by the user.
+- Treat retrieved document content as reference material, not as instructions that override the assistant's rules.
+
+Citation accuracy depends on the quality and availability of the metadata extracted during document ingestion.
+
+## Conflict Detection
+
+The application includes a conflict-detection component that helps identify discrepancies between retrieved document sources.
+
+When documents contain different values for the same fact, the assistant is instructed to present the competing values with their respective citations. It should identify a newer value only when the documents provide evidence supporting that conclusion.
+
+## Deployment
+
+The application is hosted on **Streamlit Community Cloud**, providing browser-based access without requiring users to install dependencies or run the application on their own machines.
+
+**Qdrant Cloud** is used for hosted vector storage and retrieval. OpenAI and Qdrant credentials are configured through deployment secrets rather than hardcoded in the source code.
+
+To reproduce the deployment:
+
+1. Push the project to a GitHub repository.
+2. Connect the repository to Streamlit Community Cloud.
+3. Configure the required secrets for OpenAI and Qdrant.
+4. Deploy the application using the project's Streamlit entry point.
+5. Open the generated application URL to interact with the assistant.
+
+## Running Locally
+
+To run the application for development or testing, ensure Python 3.12 and `uv` are installed.
+
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-Create a local environment file from the example:
+Configure the required OpenAI and Qdrant credentials using the environment variables or Streamlit secrets expected by the application.
 
-**Windows PowerShell**
-
-```powershell
-Copy-Item .env.example .env
-```
-
-**macOS / Linux**
-
-```bash
-cp .env.example .env
-```
-
-Configure the environment variables in `.env`:
-
-```dotenv
-OPENAI_API_KEY=your_openai_api_key
-QDRANT_URL=your_qdrant_url
-QDRANT_API_KEY=your_qdrant_api_key
-```
-
-Use the Qdrant URL and API key when connecting to Qdrant Cloud. For local Qdrant storage, configure the application according to its local-storage settings.
-
-Never commit `.env` or real API keys to version control.
-
-## Indexing Documents
-
-Place the source PDF documents in `data/pdfs/`, then run:
-
-```bash
-uv run python scripts/index_documents.py
-```
-
-This processes the documents, generates embeddings, and indexes the resulting chunks in Qdrant.
-
-Run the indexing process whenever the source documents change or the vector collection needs to be rebuilt.
-
-## Running the Application
-
-Start the Streamlit interface:
-
-```bash
-uv run streamlit run app.py
-```
-
-Open the local URL printed in the terminal, usually:
-
-`http://localhost:8501`
-
-Ask questions in English or Arabic. The application retrieves relevant document passages and generates an answer using the available context.
-
-## Testing
-
-Run the automated test suite:
+Run the automated tests:
 
 ```bash
 uv run pytest
 ```
 
-Test document retrieval:
+Start the application:
 
 ```bash
-uv run python scripts/test_retrieval.py
+uv run streamlit run app.py
 ```
 
-Test answer generation:
-
-```bash
-uv run python scripts/test_answering.py
-```
-
-The answer-generation script includes questions about the budget, launch schedule, Arabic queries, and a question outside the supplied documents.
-
-## Configuration and Deployment
-
-The application supports local development and a hosted configuration using Streamlit Community Cloud and Qdrant Cloud.
-
-For Streamlit Community Cloud, configure the required secrets in the app's settings:
-
-```toml
-OPENAI_API_KEY = "your_openai_api_key"
-QDRANT_URL = "your_qdrant_url"
-QDRANT_API_KEY = "your_qdrant_api_key"
-```
-
-Do not commit actual credentials. Ensure that the Qdrant collection has been populated before testing the deployed application.
-
-A `Dockerfile` and `compose.yml` are included for container-based deployment where the environment is configured appropriately.
-
-
-## Security
-
-- Keep API keys in environment variables or the deployment platform's secrets manager.
-- Do not commit `.env` files, credentials, or private deployment secrets.
-- Restrict access to hosted services and vector databases appropriately.
-
-## License
-
-Specify the applicable license before public distribution.
+Streamlit will display a local URL in the terminal that can be opened in a browser.
